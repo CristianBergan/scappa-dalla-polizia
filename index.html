@@ -1,180 +1,429 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>City Runner Mobile & PC</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<style>
-body { margin:0; overflow:hidden; background:#0f172a; font-family:sans-serif; touch-action:none;}
-canvas { display:block; width:100vw; height:100vh; }
-.ui-layer { position:absolute; inset:0; pointer-events:none; z-index:20; }
-.clickable { pointer-events:auto; }
-.level-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; }
-.level-card {
-  background: rgba(30,41,59,0.9);
-  border: 2px solid rgba(255,255,255,0.05);
-  aspect-ratio: 1/1;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-weight:900;
-  border-radius:8px;
-  cursor:pointer;
-  transition:all 0.2s;
-}
-.level-card.unlocked:hover { background:#3b82f6; transform:translateY(-2px); }
-.level-card.locked { opacity:0.3; cursor:not-allowed; }
-#nitro-bar-container { width:200px; height:12px; background: rgba(0,0,0,0.5); border-radius:6px; overflow:hidden; border:1px solid rgba(255,255,255,0.2); }
-#nitro-fill { width:100%; height:100%; background:linear-gradient(90deg,#3b82f6,#60a5fa); transition: width 0.1s; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>City Runner - Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background: #0f172a; font-family: sans-serif; touch-action: none; user-select: none; }
+        canvas { display: block; width: 100vw; height: 100vh; }
+        .ui-layer { position: absolute; inset: 0; pointer-events: none; z-index: 20; }
+        .clickable { pointer-events: auto; }
+        .level-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 12px; max-height: 60vh; overflow-y: auto; padding: 10px; }
+        .level-card {
+            background: rgba(30, 41, 59, 0.9);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            aspect-ratio: 1/1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: white;
+        }
+        .level-card.unlocked { border-color: #3b82f6; color: #60a5fa; }
+        .level-card.unlocked:hover { background: #3b82f6; color: white; transform: scale(1.05); }
+        .level-card.locked { opacity: 0.3; cursor: not-allowed; }
+        #nitro-bar-container { width: 150px; height: 10px; background: rgba(0, 0, 0, 0.5); border-radius: 5px; overflow: hidden; }
+        #nitro-fill { width: 100%; height: 100%; background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+        
+        /* Controlli dinamici */
+        .control-zone { position: absolute; bottom: 40px; width: 120px; height: 120px; display: none; align-items: center; justify-content: center; }
+        #joystick-zone { background: rgba(255, 255, 255, 0.1); border-radius: 50%; }
+        #joystick-knob { position: absolute; left: 50%; top: 50%; width: 50px; height: 50px; background: rgba(255, 255, 255, 0.4); border-radius: 50%; transform: translate(-50%, -50%); }
+        #boost-btn { background: #3b82f6; border-radius: 50%; font-weight: bold; color: white; box-shadow: 0 0 20px rgba(59, 130, 246, 0.5); }
+        
+        .pos-left { left: 40px; }
+        .pos-right { right: 40px; }
 
-#joystick-container {
-  position: absolute;
-  bottom: 90px;
-  left: 40px;
-  width: 100px;
-  height: 100px;
-  background: rgba(255,255,255,0.1);
-  border-radius:50%;
-  touch-action:none;
-  z-index:30;
-}
-#stick {
-  position:absolute;
-  left:50%; top:50%;
-  width:50px; height:50px;
-  background: rgba(59,130,246,0.7);
-  border-radius:50%;
-  transform: translate(-50%,-50%);
-}
-
-#boost-btn {
-  position:absolute;
-  bottom:80px;
-  right:40px;
-  width:70px;
-  height:70px;
-  border-radius:50%;
-  background:#3b82f6;
-  color:white;
-  font-weight:bold;
-  font-size:14px;
-  text-align:center;
-  line-height:70px;
-  user-select:none;
-  touch-action:none;
-  z-index:30;
-}
-
-#level-menu { position:absolute; inset:0; z-index:50; background:#0f172a; display:flex; flex-direction:column; align-items:center; padding:20px; overflow-y:auto;}
-#game-ui { display:none; position:absolute; inset:0; z-index:40; padding:10px; flex-direction:column; justify-content:space-between; pointer-events:none;}
-#status-modal { position:absolute; inset:0; z-index:60; background: rgba(0,0,0,0.9); display:none; flex-direction:column; align-items:center; justify-content:center; text-align:center; color:white;}
-</style>
+        @media (pointer: coarse) { .control-zone { display: flex; } }
+    </style>
 </head>
 <body>
 
-<!-- Home Page -->
-<div id="level-menu">
-<h1 class="text-5xl font-black text-white mb-2 italic">CITY<span class="text-blue-500">RUNNER</span></h1>
-<p class="text-slate-500 text-xs mb-10 uppercase tracking-[0.4em]">Evadi la polizia, raggiungi il garage</p>
-<div class="level-grid w-full max-w-xl" id="grid-container"></div>
+<div id="level-menu" class="absolute inset-0 z-50 flex flex-col items-center justify-center p-8 bg-slate-950">
+    <h1 class="text-5xl font-black mb-2 text-white italic">CITY <span class="text-blue-500">RUNNER</span></h1>
+    <p class="text-slate-400 mb-8 text-center">Raggiungi il garage! Usa le zone verdi per seminare la polizia.</p>
+    <div class="level-grid w-full max-w-md" id="grid-container"></div>
+    <div id="gamepad-status" class="mt-6 text-xs text-slate-500 font-mono">NESSUN JOYSTICK RILEVATO</div>
 </div>
 
-<!-- Game UI -->
-<div id="game-ui" class="ui-layer flex flex-col justify-between p-4">
-  <div class="flex justify-between items-start">
-    <div class="bg-black/70 backdrop-blur p-3 rounded-xl border border-white/10 pointer-events-auto">
-      <div class="text-[10px] text-slate-400 uppercase font-bold">Nitro</div>
-      <div id="nitro-bar-container"><div id="nitro-fill"></div></div>
+<div id="game-ui" class="ui-layer hidden p-6">
+    <div class="flex justify-between items-start pointer-events-none">
+        <div class="bg-black/60 backdrop-blur-md p-3 rounded-lg border border-white/10">
+            <div class="text-[10px] text-blue-400 uppercase font-bold mb-1">Nitro (Shift)</div>
+            <div id="nitro-bar-container"><div id="nitro-fill"></div></div>
+        </div>
+        <div class="flex flex-col items-end gap-2">
+            <div class="bg-black/60 backdrop-blur-md p-3 rounded-lg border border-white/10 text-right">
+                <div class="text-[10px] text-yellow-500 uppercase font-bold mb-1">Garage</div>
+                <div id="dist-ui" class="text-xl text-white font-mono font-bold italic">---</div>
+            </div>
+            <button onclick="toggleControls()" class="clickable px-3 py-1 bg-white/10 hover:bg-white/20 text-[10px] text-white rounded border border-white/20">INVERTI COMANDI</button>
+        </div>
     </div>
-    <div class="bg-black/70 backdrop-blur p-3 rounded-xl border border-white/10 pointer-events-auto">
-      <div class="text-[10px] text-slate-400 uppercase font-bold">Distanza Garage</div>
-      <div id="dist-to-garage" class="text-xl text-yellow-500 font-mono font-bold">0m</div>
-    </div>
-  </div>
+    <button onclick="location.reload()" class="clickable absolute top-6 left-1/2 -translate-x-1/2 px-4 py-2 bg-white/10 hover:bg-red-500/20 text-white text-xs rounded-full border border-white/20">RESET</button>
 </div>
 
-<!-- Joystick & Boost -->
-<div id="joystick-container"><div id="stick"></div></div>
-<div id="boost-btn">BOOST</div>
-
-<!-- Modal -->
-<div id="status-modal">
-<h2 id="status-title" class="text-7xl font-black italic mb-2"></h2>
-<p id="status-desc" class="text-slate-400 mb-10 text-xl font-light"></p>
-<button onclick="exitToMenu()" class="clickable px-12 py-5 bg-white text-black font-black rounded-full uppercase text-sm tracking-widest hover:scale-105 transition-transform">Continua</button>
-</div>
+<!-- Controlli Mobile -->
+<div id="joystick-zone" class="control-zone pos-left clickable"><div id="joystick-knob"></div></div>
+<div id="boost-btn" class="control-zone pos-right clickable text-center">BOOST</div>
 
 <canvas id="gameCanvas"></canvas>
 
 <script>
-const canvas=document.getElementById('gameCanvas');
-const ctx=canvas.getContext('2d');
-let width,height;
-function resize(){width=canvas.width=window.innerWidth;height=canvas.height=window.innerHeight;}
-window.addEventListener('resize',resize);
-resize();
+/** @type {HTMLCanvasElement} */
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
 
-const gridContainer=document.getElementById('grid-container');
-let currentLevel=1;
-let unlockedLevel=parseInt(localStorage.getItem('city_escape_unlocked'))||1;
-const WORLD_SIZE=3000;
-let enemies=[],civilians=[],particles=[];
-let garage={x:0,y:0,w:140,h:140};
-let gameActive=false;
+let state = {
+    active: false,
+    unlockedLevels: parseInt(localStorage.getItem('cityRunnerLevels')) || 1,
+    width: window.innerWidth,
+    height: window.innerHeight,
+    camera: { x: 0, y: 0 },
+    controlsInverted: localStorage.getItem('controlsInverted') === 'true',
+    gamepadIndex: null
+};
 
-const keys={left:false,right:false,up:false,nitro:false};
+const keys = {};
+const joy = { active: false, dx: 0, dy: 0, boost: false };
 
-class Player{
-  constructor(){this.reset();}
-  reset(){this.x=0;this.y=0;this.angle=0;this.speed=0;this.maxNormalSpeed=7;this.maxNitroSpeed=13;this.nitro=100;}
-  update(){
-    const isUsingNitro=keys.nitro && keys.up && this.nitro>0;
-    const topSpeed=isUsingNitro?this.maxNitroSpeed:this.maxNormalSpeed;
-    if(keys.up){this.speed=Math.min(this.speed+0.15,topSpeed); if(isUsingNitro)this.nitro-=0.5; else if(this.nitro<100)this.nitro+=0.1;} else this.speed*=0.97;if(this.nitro<100&&!isUsingNitro)this.nitro+=0.1;
-    if(keys.left)this.angle-=0.05*(this.speed/5+0.5);
-    if(keys.right)this.angle+=0.05*(this.speed/5+0.5);
-    this.x+=Math.cos(this.angle)*this.speed;
-    this.y+=Math.sin(this.angle)*this.speed;
-    document.getElementById('nitro-fill').style.width=this.nitro+'%';
-  }
-  draw(){
-    ctx.save(); ctx.translate(this.x,this.y); ctx.rotate(this.angle);
-    ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.fillRect(-22,-12,44,24);
-    ctx.fillStyle='#1d4ed8'; ctx.fillRect(-20,-10,40,20);
-    ctx.fillStyle='#60a5fa'; ctx.fillRect(-5,-8,15,16);
-    if(keys.up){ctx.fillStyle=keys.nitro?'#60a5fa':'#ef4444';ctx.fillRect(-22,-9,4,6);ctx.fillRect(-22,3,4,6);}
-    ctx.restore();
-  }
+class Player {
+    constructor() { this.reset(); }
+    reset() {
+        this.x = 200; this.y = 200;
+        this.angle = 0; this.speed = 0;
+        this.nitro = 100;
+        this.inSafeZone = false;
+    }
+    update() {
+        let inputX = 0, inputY = 0;
+        let isBoosting = false;
+
+        // --- Logica Gamepad (Magicsee R1) ---
+        if (state.gamepadIndex !== null) {
+            const gp = navigator.getGamepads()[state.gamepadIndex];
+            if (gp) {
+                const ax0 = gp.axes[0]; // Sinistra/Destra
+                const ax1 = gp.axes[1]; // Su/Giù
+                
+                // Deadzone per evitare micro-movimenti
+                if (Math.abs(ax0) > 0.1) this.angle += ax0 * 0.07;
+                
+                // Se spingiamo l'analogico avanti o indietro
+                if (Math.abs(ax1) > 0.1) {
+                    inputX = Math.cos(this.angle) * -ax1; // Magicsee inverte spesso asse Y
+                    inputY = Math.sin(this.angle) * -ax1;
+                }
+
+                // Controllo Boost (solitamente pulsante 0 o trigger)
+                isBoosting = gp.buttons.some(b => b.pressed);
+            }
+        }
+
+        // --- Logica Tastiera ---
+        if (keys['ArrowUp'] || keys['w']) { inputX = Math.cos(this.angle); inputY = Math.sin(this.angle); }
+        if (keys['ArrowLeft'] || keys['a']) this.angle -= 0.07;
+        if (keys['ArrowRight'] || keys['d']) this.angle += 0.07;
+
+        // --- Logica Joystick Touch ---
+        if (joy.active) {
+            this.angle = Math.atan2(joy.dy, joy.dx);
+            inputX = joy.dx; inputY = joy.dy;
+        }
+
+        // Calcolo velocità finale
+        isBoosting = isBoosting || (keys['Shift'] || joy.boost);
+        if (isBoosting && this.nitro <= 1) isBoosting = false;
+
+        const maxSpeed = isBoosting ? 12 : 6;
+        if (inputX !== 0 || inputY !== 0) {
+            this.speed = Math.min(this.speed + 0.2, maxSpeed);
+            if (isBoosting) {
+                this.nitro -= 0.6;
+                createParticles(this.x, this.y, this.angle + Math.PI, '#3b82f6', 2);
+            }
+        } else { this.speed *= 0.95; }
+
+        if (!isBoosting && this.nitro < 100) this.nitro += 0.2;
+        
+        this.x += Math.cos(this.angle) * this.speed;
+        this.y += Math.sin(this.angle) * this.speed;
+        document.getElementById('nitro-fill').style.width = this.nitro + '%';
+    }
+    draw() {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+        ctx.fillStyle = '#1e40af';
+        ctx.shadowBlur = 15; ctx.shadowColor = '#3b82f6';
+        ctx.fillRect(-18, -10, 36, 20);
+        ctx.fillStyle = '#60a5fa'; ctx.fillRect(2, -7, 8, 14);
+        ctx.fillStyle = 'white'; ctx.fillRect(14, -8, 4, 3); ctx.fillRect(14, 5, 4, 3);
+        ctx.restore();
+    }
 }
 
-class Agent{
-  constructor(type,isCivilian=false){this.type=type;this.isCivilian=isCivilian;this.resetPos();this.angle=Math.random()*Math.PI*2;this.speed=isCivilian?2+Math.random()*2:4+Math.random()*2;this.color=isCivilian?'#94a3b8':'#fff';this.stunTime=0;}
-  resetPos(){const dist=1000+Math.random()*1000;const a=Math.random()*Math.PI*2;this.x=Math.cos(a)*dist;this.y=Math.sin(a)*dist;}
-  update(target){
-    if(this.stunTime>0){this.stunTime--;return;}
-    if(this.isCivilian){if(Math.random()<0.01)this.angle+=(Math.random()-0.5);} 
-    else {const targetAngle=Math.atan2(target.y-this.y,target.x-this.x);let diff=targetAngle-this.angle;while(diff>Math.PI)diff-=Math.PI*2;while(diff<-Math.PI)diff+=Math.PI*2;this.angle+=diff*0.04;}
-    this.x+=Math.cos(this.angle)*this.speed;
-    this.y+=Math.sin(this.angle)*this.speed;
-    const d=Math.hypot(this.x-target.x,this.y-target.y);
-    if(d<35){if(this.isCivilian){this.stunTime=100;target.stunTime=30;createParticles(this.x,this.y,'#fff',10);} else endGame(false);}
-  }
-  draw(){
-    ctx.save();ctx.translate(this.x,this.y);ctx.rotate(this.angle);
-    if(this.type==='heli'){ctx.fillStyle='#334155';ctx.beginPath();ctx.arc(0,0,20,0,Math.PI*2);ctx.fill();ctx.fillRect(-40,-2,80,4);}
-    else if(this.type==='tank'){ctx.fillStyle='#365314';ctx.fillRect(-30,-20,60,40);ctx.fillStyle='#1a2e05';ctx.fillRect(0,-5,45,10);}
-    else {ctx.fillStyle=this.color;ctx.fillRect(-18,-9,36,18);
-      if(!this.isCivilian&&Date.now()%400<200){ctx.fillStyle='#ef4444';ctx.fillRect(2,-9,8,4);ctx.fillStyle='#3b82f6';ctx.fillRect(2,5,8,4);}}
-    ctx.restore();
-  }
+class Enemy {
+    constructor(x, y) {
+        this.x = x; this.y = y;
+        this.angle = Math.random() * Math.PI * 2;
+        this.speed = 3;
+    }
+    update(player) {
+        const dx = player.x - this.x;
+        const dy = player.y - this.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+
+        if (dist < 700 && !player.inSafeZone) {
+            const targetAngle = Math.atan2(dy, dx);
+            let diff = targetAngle - this.angle;
+            while (diff < -Math.PI) diff += Math.PI * 2;
+            while (diff > Math.PI) diff -= Math.PI * 2;
+            this.angle += diff * 0.06;
+            this.speed = 5.8;
+        } else {
+            this.speed = 2.5;
+            this.angle += 0.01;
+        }
+
+        this.x += Math.cos(this.angle) * this.speed;
+        this.y += Math.sin(this.angle) * this.speed;
+        if (dist < 30) gameOver("LA POLIZIA TI HA FERMATO!");
+    }
+    draw() {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+        ctx.fillStyle = 'white';
+        ctx.shadowBlur = 5; ctx.shadowColor = 'black';
+        ctx.fillRect(-18, -10, 36, 20);
+        ctx.fillStyle = '#1d4ed8'; ctx.fillRect(-18, -2, 36, 4);
+        if (Math.floor(Date.now() / 150) % 2 === 0) {
+            ctx.fillStyle = 'red'; ctx.fillRect(-3, -10, 6, 3);
+        } else {
+            ctx.fillStyle = 'blue'; ctx.fillRect(-3, 7, 6, 3);
+        }
+        ctx.restore();
+    }
 }
 
-function createParticles(x,y,color,count){for(let i=0;i<count;i++)particles.push({x,y,vx:(Math.random()-0.5)*5,vy:(Math.random()-0.5)*5,life:1,color});}
+class Civilian {
+    constructor(x, y) {
+        this.x = x; this.y = y;
+        this.angle = Math.random() * Math.PI * 2;
+        this.speed = 2;
+    }
+    update() {
+        this.x += Math.cos(this.angle) * this.speed;
+        this.y += Math.sin(this.angle) * this.speed;
+        if (Math.random() < 0.01) this.angle += (Math.random() - 0.5);
+    }
+    draw() {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+        ctx.fillStyle = '#64748b';
+        ctx.fillRect(-18, -10, 36, 20);
+        ctx.fillStyle = '#94a3b8'; ctx.fillRect(0, -7, 6, 14);
+        ctx.restore();
+    }
+}
 
-const player=new Player();
+const player = new Player();
+let enemies = [];
+let civilians = [];
+let safeZones = [];
+let particles = [];
+let garage = { x: 0, y: 0, size: 150 };
 
-function startLevel(lvl){
-  currentLevel=lvl;
-  document.getElementById('leve
+function createParticles(x, y, angle, color, count) {
+    for(let i=0; i<count; i++) {
+        particles.push({
+            x, y, 
+            vx: Math.cos(angle + (Math.random()-0.5)) * (Math.random() * 3),
+            vy: Math.sin(angle + (Math.random()-0.5)) * (Math.random() * 3),
+            life: 1.0, color
+        });
+    }
+}
 
+function initLevel(num) {
+    player.reset();
+    enemies = []; civilians = []; safeZones = []; particles = [];
+    const worldLimit = 2000 + (num * 500);
+    const angle = Math.random() * Math.PI * 2;
+    garage.x = Math.cos(angle) * worldLimit;
+    garage.y = Math.sin(angle) * worldLimit;
+
+    for(let i=0; i<3 + Math.floor(num/2); i++) {
+        safeZones.push({
+            x: (Math.random() - 0.5) * worldLimit * 1.5,
+            y: (Math.random() - 0.5) * worldLimit * 1.5,
+            radius: 300
+        });
+    }
+
+    for (let i = 0; i < 5 + num; i++) {
+        enemies.push(new Enemy((Math.random()-0.5)*worldLimit, (Math.random()-0.5)*worldLimit));
+    }
+    for (let i = 0; i < 15 + num; i++) {
+        civilians.push(new Civilian((Math.random()-0.5)*worldLimit, (Math.random()-0.5)*worldLimit));
+    }
+
+    state.active = true;
+    updateControlPositions();
+    document.getElementById('level-menu').style.display = 'none';
+    document.getElementById('game-ui').style.display = 'block';
+}
+
+function gameOver(msg) { state.active = false; alert(msg); location.reload(); }
+
+function winLevel() {
+    state.active = false;
+    let current = parseInt(localStorage.getItem('cityRunnerLevels')) || 1;
+    let playing = parseInt(localStorage.getItem('currentAttemptLevel')) || 1;
+    if (playing >= current) localStorage.setItem('cityRunnerLevels', current + 1);
+    alert("OTTIMO! Hai raggiunto il garage.");
+    location.reload();
+}
+
+function toggleControls() {
+    state.controlsInverted = !state.controlsInverted;
+    localStorage.setItem('controlsInverted', state.controlsInverted);
+    updateControlPositions();
+}
+
+function updateControlPositions() {
+    const j = document.getElementById('joystick-zone');
+    const b = document.getElementById('boost-btn');
+    if (state.controlsInverted) {
+        j.classList.replace('pos-left', 'pos-right');
+        b.classList.replace('pos-right', 'pos-left');
+    } else {
+        j.classList.replace('pos-right', 'pos-left');
+        b.classList.replace('pos-left', 'pos-right');
+    }
+}
+
+// Gamepad Event Listeners
+window.addEventListener("gamepadconnected", (e) => {
+    state.gamepadIndex = e.gamepad.index;
+    document.getElementById('gamepad-status').innerText = "JOYSTICK CONNESSO: " + e.gamepad.id.substring(0, 15) + "...";
+    document.getElementById('gamepad-status').className = "mt-6 text-xs text-green-500 font-mono font-bold";
+});
+
+window.addEventListener("gamepaddisconnected", (e) => {
+    state.gamepadIndex = null;
+    document.getElementById('gamepad-status').innerText = "JOYSTICK DISCONNESSO";
+    document.getElementById('gamepad-status').className = "mt-6 text-xs text-slate-500 font-mono";
+});
+
+function loop() {
+    if (!state.active) return requestAnimationFrame(loop);
+
+    player.update();
+    
+    player.inSafeZone = false;
+    safeZones.forEach(z => {
+        const d = Math.sqrt((player.x - z.x)**2 + (player.y - z.y)**2);
+        if (d < z.radius) player.inSafeZone = true;
+    });
+
+    enemies.forEach(e => e.update(player));
+    civilians.forEach(c => c.update());
+    
+    particles.forEach((p, i) => {
+        p.x += p.vx; p.y += p.vy; p.life -= 0.02;
+        if (p.life <= 0) particles.splice(i, 1);
+    });
+
+    state.camera.x += (player.x - state.camera.x - state.width/2) * 0.1;
+    state.camera.y += (player.y - state.camera.y - state.height/2) * 0.1;
+
+    const distToGarage = Math.sqrt((player.x - garage.x)**2 + (player.y - garage.y)**2);
+    document.getElementById('dist-ui').innerText = Math.floor(distToGarage) + "m";
+    if (distToGarage < 80) winLevel();
+
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(0, 0, state.width, state.height);
+
+    ctx.save();
+    ctx.translate(-state.camera.x, -state.camera.y);
+
+    safeZones.forEach(z => {
+        ctx.fillStyle = 'rgba(34, 197, 94, 0.1)';
+        ctx.beginPath(); ctx.arc(z.x, z.y, z.radius, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = 'rgba(34, 197, 94, 0.3)';
+        ctx.setLineDash([10, 10]);
+        ctx.beginPath(); ctx.arc(z.x, z.y, z.radius, 0, Math.PI*2); ctx.stroke();
+        ctx.setLineDash([]);
+    });
+
+    ctx.fillStyle = '#facc15'; ctx.shadowBlur = 30; ctx.shadowColor = '#facc15';
+    ctx.fillRect(garage.x - garage.size/2, garage.y - garage.size/2, garage.size, garage.size);
+    ctx.shadowBlur = 0; ctx.fillStyle = '#000'; ctx.font = 'bold 20px monospace';
+    ctx.fillText("GARAGE", garage.x - 35, garage.y + 7);
+
+    particles.forEach(p => { ctx.globalAlpha = p.life; ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y, 4, 4); });
+    ctx.globalAlpha = 1;
+    civilians.forEach(c => c.draw());
+    enemies.forEach(e => e.draw());
+    player.draw();
+
+    ctx.restore();
+    requestAnimationFrame(loop);
+}
+
+function renderMenu() {
+    const container = document.getElementById('grid-container');
+    container.innerHTML = '';
+    for (let i = 1; i <= 20; i++) {
+        const div = document.createElement('div');
+        const isUnlocked = i <= state.unlockedLevels;
+        div.className = `level-card ${isUnlocked ? 'unlocked' : 'locked'}`;
+        div.innerText = i;
+        if (isUnlocked) div.onclick = () => { localStorage.setItem('currentAttemptLevel', i); initLevel(i); };
+        container.appendChild(div);
+    }
+}
+
+window.addEventListener('keydown', e => keys[e.key] = true);
+window.addEventListener('keyup', e => keys[e.key] = false);
+
+const jZone = document.getElementById('joystick-zone');
+const jKnob = document.getElementById('joystick-knob');
+const bBtn = document.getElementById('boost-btn');
+
+const handleJoy = (e) => {
+    e.preventDefault(); joy.active = true;
+    const touch = e.touches[0];
+    const rect = jZone.getBoundingClientRect();
+    const centerX = rect.left + rect.width/2;
+    const centerY = rect.top + rect.height/2;
+    joy.dx = (touch.clientX - centerX) / (rect.width/2);
+    joy.dy = (touch.clientY - centerY) / (rect.height/2);
+    const angle = Math.atan2(joy.dy, joy.dx);
+    const dist = Math.min(1, Math.sqrt(joy.dx**2 + joy.dy**2));
+    jKnob.style.transform = `translate(calc(-50% + ${Math.cos(angle)*dist*40}px), calc(-50% + ${Math.sin(angle)*dist*40}px))`;
+};
+
+jZone.addEventListener('touchstart', handleJoy);
+jZone.addEventListener('touchmove', handleJoy);
+jZone.addEventListener('touchend', () => { joy.active = false; jKnob.style.transform = `translate(-50%, -50%)`; });
+bBtn.addEventListener('touchstart', () => joy.boost = true);
+bBtn.addEventListener('touchend', () => joy.boost = false);
+
+window.addEventListener('resize', () => {
+    state.width = canvas.width = window.innerWidth;
+    state.height = canvas.height = window.innerHeight;
+});
+
+window.onload = () => { window.dispatchEvent(new Event('resize')); renderMenu(); loop(); };
+</script>
+</body>
+</html>
