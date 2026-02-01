@@ -1,442 +1,303 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Underground Escape: City Life</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { margin: 0; overflow: hidden; background: #0f172a; font-family: sans-serif; touch-action: none; }
-        canvas { display: block; width: 100vw; height: 100vh; }
-        .ui-layer { position: absolute; inset: 0; pointer-events: none; z-index: 20; }
-        .clickable { pointer-events: auto; }
-        .level-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
-        .level-card {
-            background: rgba(30, 41, 59, 0.9);
-            border: 2px solid rgba(255,255,255,0.05);
-            aspect-ratio: 1/1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 900;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .level-card.unlocked:hover { background: #3b82f6; transform: translateY(-2px); }
-        .level-card.locked { opacity: 0.3; cursor: not-allowed; }
-        #nitro-bar-container { width: 200px; height: 12px; background: rgba(0,0,0,0.5); border-radius: 6px; overflow: hidden; border: 1px solid rgba(255,255,255,0.2); }
-        #nitro-fill { width: 100%; height: 100%; background: linear-gradient(90deg, #3b82f6, #60a5fa); transition: width 0.1s; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>City Runner: Underground Escape</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+body { margin:0; overflow:hidden; background:#0f172a; font-family:sans-serif; touch-action:none; }
+canvas { display:block; width:100vw; height:100vh; }
+.ui-layer { position:absolute; inset:0; pointer-events:none; z-index:20; }
+.clickable { pointer-events:auto; }
+.level-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; }
+.level-card {
+  background: rgba(30,41,59,0.9);
+  border:2px solid rgba(255,255,255,0.05);
+  aspect-ratio:1/1;
+  display:flex; align-items:center; justify-content:center;
+  font-weight:900; border-radius:8px; cursor:pointer; transition:all 0.2s;
+}
+.level-card.unlocked:hover { background:#3b82f6; transform:translateY(-2px); }
+.level-card.locked { opacity:0.3; cursor:not-allowed; }
+#nitro-bar-container { width:200px; height:12px; background:rgba(0,0,0,0.5); border-radius:6px; overflow:hidden; border:1px solid rgba(255,255,255,0.2); }
+#nitro-fill { width:100%; height:100%; background:linear-gradient(90deg,#3b82f6,#60a5fa); transition:width 0.1s; }
+#joystick-container { position:absolute; bottom:80px; left:40px; width:120px; height:120px; background:rgba(255,255,255,0.05); border-radius:50%; touch-action:none; }
+#stick { position:absolute; left:50%; top:50%; width:50px; height:50px; background:rgba(255,255,255,0.2); border-radius:50%; transform:translate(-50%,-50%); }
+#boost-btn { position:absolute; bottom:80px; right:40px; width:80px; height:80px; border-radius:50%; background:#3b82f6; color:white; font-weight:bold; display:flex; align-items:center; justify-content:center; font-size:14px; }
+</style>
 </head>
 <body>
 
-    <!-- Menu Selezione Livelli -->
-    <div id="level-menu" class="absolute inset-0 z-50 bg-slate-950 flex flex-col items-center p-8 overflow-y-auto">
-        <h1 class="text-5xl font-black text-white mb-2 italic">CITY<span class="text-blue-500">RUNNER</span></h1>
-        <p class="text-slate-500 text-xs mb-10 uppercase tracking-[0.4em]">Evadi la polizia, raggiungi il garage</p>
-        <div class="level-grid w-full max-w-xl" id="grid-container"></div>
-    </div>
+<!-- Menu Selezione Livelli -->
+<div id="level-menu" class="absolute inset-0 z-50 bg-slate-950 flex flex-col items-center p-8 overflow-y-auto">
+<h1 class="text-5xl font-black text-white mb-2 italic">CITY<span class="text-blue-500">RUNNER</span></h1>
+<p class="text-slate-500 text-xs mb-10 uppercase tracking-[0.4em]">Evadi la polizia, raggiungi il garage</p>
+<div class="level-grid w-full max-w-xl" id="grid-container"></div>
+</div>
 
-    <!-- UI Gioco -->
-    <div id="game-ui" class="ui-layer hidden p-6 flex flex-col justify-between">
-        <div class="flex justify-between items-start">
-            <div class="bg-black/70 backdrop-blur p-4 rounded-xl border border-white/10">
-                <div class="text-[10px] text-slate-400 uppercase font-bold">Stato Veicolo</div>
-                <div id="stealth-status" class="text-lg font-black text-blue-400">VISIBILE</div>
-                <div class="mt-2 text-[10px] text-slate-400 uppercase font-bold">Nitro (Shift)</div>
-                <div id="nitro-bar-container"><div id="nitro-fill"></div></div>
-            </div>
-            <div class="text-right">
-                <div class="bg-black/70 backdrop-blur p-4 rounded-xl border border-white/10 mb-2">
-                    <div class="text-[10px] text-slate-400 uppercase font-bold">Distanza Garage</div>
-                    <div id="dist-to-garage" class="text-xl text-yellow-500 font-mono font-bold">0m</div>
-                </div>
-            </div>
-        </div>
+<!-- UI Gioco -->
+<div id="game-ui" class="ui-layer hidden p-6 flex flex-col justify-between">
+<div class="flex justify-between items-start">
+<div class="bg-black/70 backdrop-blur p-4 rounded-xl border border-white/10">
+<div class="text-[10px] text-slate-400 uppercase font-bold">Nitro (Shift)</div>
+<div id="nitro-bar-container"><div id="nitro-fill"></div></div>
+</div>
+<div class="text-right">
+<div class="bg-black/70 backdrop-blur p-4 rounded-xl border border-white/10 mb-2">
+<div class="text-[10px] text-slate-400 uppercase font-bold">Distanza Garage</div>
+<div id="dist-to-garage" class="text-xl text-yellow-500 font-mono font-bold">0m</div>
+</div>
+</div>
+</div>
+<div class="flex justify-between items-end">
+<button onclick="exitToMenu()" class="clickable px-6 py-3 bg-red-600/20 hover:bg-red-600 text-red-500 hover:text-white transition-colors text-xs font-bold rounded-lg border border-red-500/50 uppercase">Esci</button>
+<div id="joystick-container">
+<div id="stick"></div>
+</div>
+<div id="boost-btn" class="clickable">BOOST</div>
+</div>
+</div>
 
-        <div class="flex justify-between items-end">
-            <!-- Radar -->
-            <div class="w-36 h-36 bg-black/80 rounded-full border-4 border-slate-800 relative overflow-hidden">
-                <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle,_#22c55e_1px,_transparent_1px)] bg-[size:20px_20px]"></div>
-                <div id="radar-dots"></div>
-                <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-blue-500 rounded-full shadow-[0_0_8px_#3b82f6]"></div>
-            </div>
-            <button onclick="exitToMenu()" class="clickable px-6 py-3 bg-red-600/20 hover:bg-red-600 text-red-500 hover:text-white transition-colors text-xs font-bold rounded-lg border border-red-500/50 uppercase">Esci</button>
-        </div>
-    </div>
+<!-- Modal Fine Partita -->
+<div id="status-modal" class="absolute inset-0 z-[60] bg-black/90 hidden flex-col items-center justify-center text-center">
+<h2 id="status-title" class="text-7xl font-black italic mb-2"></h2>
+<p id="status-desc" class="text-slate-400 mb-10 text-xl font-light"></p>
+<button onclick="exitToMenu()" class="clickable px-12 py-5 bg-white text-black font-black rounded-full uppercase text-sm tracking-widest hover:scale-105 transition-transform">Continua</button>
+</div>
 
-    <!-- Modal Fine Partita -->
-    <div id="status-modal" class="absolute inset-0 z-[60] bg-black/90 hidden flex-col items-center justify-center text-center">
-        <h2 id="status-title" class="text-7xl font-black italic mb-2"></h2>
-        <p id="status-desc" class="text-slate-400 mb-10 text-xl font-light"></p>
-        <button onclick="exitToMenu()" class="clickable px-12 py-5 bg-white text-black font-black rounded-full uppercase text-sm tracking-widest hover:scale-105 transition-transform">Continua</button>
-    </div>
+<canvas id="gameCanvas"></canvas>
 
-    <canvas id="gameCanvas"></canvas>
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const gridContainer = document.getElementById('grid-container');
 
-    <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const gridContainer = document.getElementById('grid-container');
-        
-        let width, height;
-        let gameActive = false;
-        let currentLevel = 1;
-        let unlockedLevel = parseInt(localStorage.getItem('city_escape_unlocked')) || 1;
+let width,height,gameActive=false,currentLevel=1;
+let unlockedLevel=parseInt(localStorage.getItem('city_escape_unlocked'))||1;
 
-        const WORLD_SIZE = 3000;
-        const SAFE_ZONES = [];
-        let enemies = [];
-        let civilians = [];
-        let particles = [];
-        let garage = { x: 0, y: 0, w: 140, h: 140 };
-        const keys = { left: false, right: false, up: false, nitro: false };
+const WORLD_SIZE = 3000;
+const SAFE_ZONES = [];
+let enemies=[],civilians=[],particles=[];
+let garage = {x:0,y:0,w:140,h:140};
+const keys = {left:false,right:false,up:false,nitro:false};
 
-        class Player {
-            constructor() {
-                this.reset();
-            }
-            reset() {
-                this.x = 0; this.y = 0;
-                this.angle = 0;
-                this.speed = 0;
-                this.maxNormalSpeed = 7;
-                this.maxNitroSpeed = 13;
-                this.nitro = 100;
-                this.isSafe = false;
-                this.stunTime = 0;
-            }
-            update() {
-                if (this.stunTime > 0) {
-                    this.stunTime--;
-                    this.speed *= 0.9;
-                    return;
-                }
+let stick = document.getElementById('stick');
+let joystickContainer = document.getElementById('joystick-container');
+let boostBtn = document.getElementById('boost-btn');
 
-                const isUsingNitro = keys.nitro && this.nitro > 0 && keys.up;
-                const topSpeed = isUsingNitro ? this.maxNitroSpeed : this.maxNormalSpeed;
+class Player{
+  constructor(){ this.reset(); }
+  reset(){
+    this.x=0; this.y=0; this.angle=0; this.speed=0; this.maxNormalSpeed=7;
+    this.maxNitroSpeed=13; this.nitro=100;
+  }
+  update(){
+    let topSpeed = keys.nitro && keys.up ? this.maxNitroSpeed : this.maxNormalSpeed;
+    if(keys.up){ this.speed=Math.min(this.speed+0.15,topSpeed);
+      if(keys.nitro) createParticles(this.x,this.y,'#60a5fa',2);
+      else if(this.nitro<100)this.nitro+=0.05;
+    } else this.speed*=0.97;
+    if(keys.left)this.angle-=0.05*(this.speed/5+0.5);
+    if(keys.right)this.angle+=0.05*(this.speed/5+0.5);
+    this.x+=Math.cos(this.angle)*this.speed;
+    this.y+=Math.sin(this.angle)*this.speed;
+    if(keys.nitro && keys.up)this.nitro=Math.max(this.nitro-0.5,0);
+    else if(this.nitro<100)this.nitro+=0.1;
+    document.getElementById('nitro-fill').style.width=this.nitro+'%';
+  }
+  draw(){
+    ctx.save();
+    ctx.translate(this.x,this.y);
+    ctx.rotate(this.angle);
+    ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.fillRect(-22,-12,44,24); //ombra
+    ctx.fillStyle='#1d4ed8'; ctx.fillRect(-20,-10,40,20); //carro
+    ctx.fillStyle='#60a5fa'; ctx.fillRect(-5,-8,15,16); //vetri
+    if(keys.up){ ctx.fillStyle=keys.nitro?'#60a5fa':'#ef4444';
+      ctx.fillRect(-22,-9,4,6); ctx.fillRect(-22,3,4,6);}
+    ctx.restore();
+  }
+}
 
-                if (keys.up) {
-                    this.speed = Math.min(this.speed + 0.15, topSpeed);
-                    if (isUsingNitro) {
-                        this.nitro -= 0.5;
-                        createParticles(this.x, this.y, '#60a5fa', 2);
-                    } else if (this.nitro < 100) {
-                        this.nitro += 0.05;
-                    }
-                } else {
-                    this.speed *= 0.97;
-                    if (this.nitro < 100) this.nitro += 0.1;
-                }
+class Agent{
+  constructor(type,isCivilian=false){
+    this.type=type; this.isCivilian=isCivilian; this.resetPos();
+    this.angle=Math.random()*Math.PI*2;
+    this.speed=isCivilian?2+Math.random()*2:4+Math.random()*2;
+    this.stunTime=0;
+    this.color=isCivilian?'#94a3b8':'#ffffff';
+  }
+  resetPos(){
+    const dist=1000+Math.random()*1000;
+    const a=Math.random()*Math.PI*2;
+    this.x=Math.cos(a)*dist;
+    this.y=Math.sin(a)*dist;
+  }
+  update(target){
+    if(this.stunTime>0){ this.stunTime--; return;}
+    if(this.isCivilian){ if(Math.random()<0.01)this.angle+=(Math.random()-0.5);}
+    else{ if(!target.isSafe||this.type==='heli'){ const ta=Math.atan2(target.y-this.y,target.x-this.x);
+      let diff=ta-this.angle; while(diff>Math.PI)diff-=Math.PI*2; while(diff<-Math.PI)diff+=Math.PI*2;
+      this.angle+=diff*0.04;} else this.angle+=0.01;}
+    this.x+=Math.cos(this.angle)*this.speed; this.y+=Math.sin(this.angle)*this.speed;
+    const d=Math.sqrt((this.x-target.x)**2+(this.y-target.y)**2);
+    if(d<35){ if(this.isCivilian){ this.stunTime=100; target.stunTime=30; createParticles(this.x,this.y,'#fff',10);}
+    else endGame(false);}
+  }
+  draw(){
+    ctx.save(); ctx.translate(this.x,this.y); ctx.rotate(this.angle);
+    if(this.type==='heli'){ ctx.fillStyle='#334155'; ctx.beginPath(); ctx.arc(0,0,20,0,Math.PI*2); ctx.fill(); ctx.fillRect(-40,-2,80,4);}
+    else if(this.type==='tank'){ ctx.fillStyle='#365314'; ctx.fillRect(-30,-20,60,40); ctx.fillStyle='#1a2e05'; ctx.fillRect(0,-5,45,10);}
+    else { ctx.fillStyle=this.color; ctx.fillRect(-18,-9,36,18);
+      if(!this.isCivilian && Date.now()%400<200){ ctx.fillStyle='#ef4444'; ctx.fillRect(2,-9,8,4); ctx.fillStyle='#3b82f6'; ctx.fillRect(2,5,8,4);}}
+    ctx.restore();
+  }
+}
 
-                if (keys.left) this.angle -= 0.05 * (this.speed / 5 + 0.5);
-                if (keys.right) this.angle += 0.05 * (this.speed / 5 + 0.5);
+const player = new Player();
 
-                this.x += Math.cos(this.angle) * this.speed;
-                this.y += Math.sin(this.angle) * this.speed;
+function createParticles(x,y,color,count){
+  for(let i=0;i<count;i++){
+    particles.push({x,y,vx:(Math.random()-0.5)*5,vy:(Math.random()-0.5)*5,life:1,color});
+  }
+}
 
-                // Safe zones check
-                this.isSafe = false;
-                SAFE_ZONES.forEach(z => {
-                    const d = Math.sqrt((this.x-z.x)**2 + (this.y-z.y)**2);
-                    if (d < z.r) this.isSafe = true;
-                });
+function startLevel(lvl){
+  currentLevel=lvl;
+  document.getElementById('level-menu').style.display='none';
+  document.getElementById('game-ui').style.display='flex';
+  document.getElementById('status-modal').style.display='none';
 
-                document.getElementById('nitro-fill').style.width = this.nitro + '%';
-            }
-            draw() {
-                ctx.save();
-                ctx.translate(this.x, this.y);
-                ctx.rotate(this.angle);
-                
-                // Ombra
-                ctx.fillStyle = 'rgba(0,0,0,0.3)';
-                ctx.fillRect(-22, -12, 44, 24);
+  // RESET PLAYER
+  player.reset(); player.angle=0; player.speed=0;
+  keys.left=keys.right=keys.up=keys.nitro=false;
+  stick.style.transform="translate(-50%,-50%)";
 
-                // Carpo
-                ctx.fillStyle = '#1d4ed8';
-                ctx.fillRect(-20, -10, 40, 20);
-                
-                // Tetto e Vetri
-                ctx.fillStyle = '#60a5fa';
-                ctx.fillRect(-5, -8, 15, 16);
+  enemies.length=0; civilians.length=0; particles.length=0; SAFE_ZONES.length=0;
 
-                // Luci
-                if (keys.up) {
-                    ctx.fillStyle = keys.nitro ? '#60a5fa' : '#ef4444';
-                    ctx.fillRect(-22, -9, 4, 6);
-                    ctx.fillRect(-22, 3, 4, 6);
-                }
-                ctx.restore();
-            }
-        }
+  garage.x=(Math.random()>0.5?1:-1)*(1200+Math.random()*500);
+  garage.y=(Math.random()>0.5?1:-1)*(1200+Math.random()*500);
 
-        class Agent {
-            constructor(type, isCivilian = false) {
-                this.type = type; // police, army, tank, heli, civilian
-                this.isCivilian = isCivilian;
-                this.resetPos();
-                this.angle = Math.random() * Math.PI * 2;
-                this.speed = isCivilian ? 2 + Math.random() * 2 : 4 + Math.random() * 2;
-                this.stunTime = 0;
-                this.color = isCivilian ? '#94a3b8' : '#ffffff';
-            }
-            resetPos() {
-                const dist = 1000 + Math.random() * 1000;
-                const a = Math.random() * Math.PI * 2;
-                this.x = Math.cos(a) * dist;
-                this.y = Math.sin(a) * dist;
-            }
-            update(target) {
-                if (this.stunTime > 0) {
-                    this.stunTime--;
-                    return;
-                }
+  // CIVILI
+  for(let i=0;i<40;i++) civilians.push(new Agent('civilian',true));
 
-                if (this.isCivilian) {
-                    // I civili vanno dritti e girano ogni tanto
-                    if (Math.random() < 0.01) this.angle += (Math.random() - 0.5);
-                } else {
-                    // Logica inseguimento (se non siamo in safe zone o se è un elicottero)
-                    if (!target.isSafe || this.type === 'heli') {
-                        const targetAngle = Math.atan2(target.y - this.y, target.x - this.x);
-                        let diff = targetAngle - this.angle;
-                        while (diff > Math.PI) diff -= Math.PI * 2;
-                        while (diff < -Math.PI) diff += Math.PI * 2;
-                        this.angle += diff * 0.04;
-                    } else {
-                        this.angle += 0.01;
-                    }
-                }
+  // NEMICI
+  const baseCount=3+Math.floor(lvl/2);
+  for(let i=0;i<baseCount;i++){
+    let type='police';
+    if(lvl>5 && i%3===0) type='interceptor';
+    if(lvl>10 && i%4===0) type='heli';
+    if(lvl>15 && i%5===0) type='army';
+    if(lvl>20 && i%6===0) type='tank';
+    enemies.push(new Agent(type));
+  }
 
-                this.x += Math.cos(this.angle) * this.speed;
-                this.y += Math.sin(this.angle) * this.speed;
+  gameActive=true; resize(); requestAnimationFrame(loop);
+}
 
-                // Collisioni con player
-                const d = Math.sqrt((this.x - target.x)**2 + (this.y - target.y)**2);
-                if (d < 35) {
-                    if (this.isCivilian) {
-                        this.stunTime = 100;
-                        target.stunTime = 30;
-                        createParticles(this.x, this.y, '#fff', 10);
-                    } else {
-                        endGame(false);
-                    }
-                }
-            }
-            draw() {
-                ctx.save();
-                ctx.translate(this.x, this.y);
-                ctx.rotate(this.angle);
-                if (this.type === 'heli') {
-                    ctx.fillStyle = '#334155';
-                    ctx.beginPath(); ctx.arc(0,0, 20, 0, Math.PI*2); ctx.fill();
-                    ctx.fillRect(-40, -2, 80, 4);
-                } else if (this.type === 'tank') {
-                    ctx.fillStyle = '#365314'; ctx.fillRect(-30, -20, 60, 40);
-                    ctx.fillStyle = '#1a2e05'; ctx.fillRect(0, -5, 45, 10);
-                } else {
-                    ctx.fillStyle = this.color;
-                    ctx.fillRect(-18, -9, 36, 18);
-                    if (!this.isCivilian && Date.now() % 400 < 200) {
-                        ctx.fillStyle = '#ef4444'; ctx.fillRect(2, -9, 8, 4);
-                        ctx.fillStyle = '#3b82f6'; ctx.fillRect(2, 5, 8, 4);
-                    }
-                }
-                ctx.restore();
-            }
-        }
+function loop(){
+  if(!gameActive) return;
+  player.update();
+  enemies.forEach(e=>e.update(player));
+  civilians.forEach(c=>c.update(player));
+  particles.forEach((p,i)=>{p.x+=p.vx; p.y+=p.vy; p.life-=0.02; if(p.life<=0) particles.splice(i,1);});
 
-        function createParticles(x, y, color, count) {
-            for(let i=0; i<count; i++) {
-                particles.push({
-                    x, y, 
-                    vx: (Math.random()-0.5)*5, 
-                    vy: (Math.random()-0.5)*5, 
-                    life: 1, 
-                    color
-                });
-            }
-        }
+  // DISTANZA
+  const d=Math.sqrt((player.x-garage.x)**2+(player.y-garage.y)**2);
+  document.getElementById('dist-to-garage').innerText=Math.floor(d)+'m';
 
-        const player = new Player();
+  // DRAW
+  ctx.fillStyle='#0f172a'; ctx.fillRect(0,0,width,height);
+  ctx.save(); ctx.translate(width/2-player.x,height/2-player.y);
+  // GRID SEMPLICE
+  ctx.strokeStyle='rgba(255,255,255,0.05)'; ctx.lineWidth=2;
+  for(let i=-WORLD_SIZE;i<=WORLD_SIZE;i+=200){ ctx.beginPath(); ctx.moveTo(i,-WORLD_SIZE); ctx.lineTo(i,WORLD_SIZE); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-WORLD_SIZE,i); ctx.lineTo(WORLD_SIZE,i); ctx.stroke();}
+  // GARAGE
+  ctx.fillStyle='#fbbf24'; ctx.fillRect(garage.x-70,garage.y-70,140,140); ctx.fillStyle='#000'; ctx.fillRect(garage.x-50,garage.y-10,100,60);
 
-        function startLevel(lvl) {
-            currentLevel = lvl;
-            document.getElementById('level-menu').style.display = 'none';
-            document.getElementById('game-ui').style.display = 'flex';
-            document.getElementById('status-modal').style.display = 'none';
-            
-            player.reset();
-            enemies = [];
-            civilians = [];
-            particles = [];
-            SAFE_ZONES.length = 0;
+  civilians.forEach(c=>c.draw()); enemies.forEach(e=>e.draw());
+  particles.forEach(p=>{ ctx.globalAlpha=p.life; ctx.fillStyle=p.color; ctx.fillRect(p.x,p.y,4,4); ctx.globalAlpha=1;});
+  player.draw();
+  ctx.restore();
 
-            // Genera Mappa
-            for(let i=0; i<6; i++) {
-                SAFE_ZONES.push({
-                    x: (Math.random()-0.5)*WORLD_SIZE, y: (Math.random()-0.5)*WORLD_SIZE,
-                    r: 150 + Math.random()*150
-                });
-            }
+  if(d<80) endGame(true);
+  requestAnimationFrame(loop);
+}
 
-            garage.x = (Math.random() > 0.5 ? 1 : -1) * (1200 + Math.random()*500);
-            garage.y = (Math.random() > 0.5 ? 1 : -1) * (1200 + Math.random()*500);
+function endGame(win){
+  gameActive=false;
+  const modal=document.getElementById('status-modal');
+  modal.style.display='flex';
+  document.getElementById('status-title').innerText=win?"CE L'HAI FATTA!":"ARRESTATO";
+  document.getElementById('status-title').className=win?"text-7xl font-black italic mb-2 text-green-500":"text-7xl font-black italic mb-2 text-red-600";
+  document.getElementById('status-desc').innerText=win?"Hai seminato la polizia.":"Il tuo viaggio finisce qui.";
+  if(win && currentLevel===unlockedLevel && unlockedLevel<25){ unlockedLevel++; localStorage.setItem('city_escape_unlocked',unlockedLevel);}
+}
 
-            // Popola civili
-            for(let i=0; i<40; i++) civilians.push(new Agent('civilian', true));
+function exitToMenu(){
+  gameActive=false;
+  document.getElementById('game-ui').style.display='none';
+  document.getElementById('status-modal').style.display='none';
+  document.getElementById('level-menu').style.display='flex';
+  renderLevels();
+}
 
-            // Popola nemici per livello
-            const baseCount = 3 + Math.floor(lvl/2);
-            for(let i=0; i<baseCount; i++) {
-                let type = 'police';
-                if (lvl > 5 && i % 3 === 0) type = 'interceptor';
-                if (lvl > 10 && i % 4 === 0) type = 'heli';
-                if (lvl > 15 && i % 5 === 0) type = 'army';
-                if (lvl > 20 && i % 6 === 0) type = 'tank';
-                enemies.push(new Agent(type));
-            }
+function renderLevels(){
+  gridContainer.innerHTML='';
+  for(let i=1;i<=25;i++){
+    const card=document.createElement('div');
+    const isLocked=i>unlockedLevel;
+    card.className=`level-card ${isLocked?'locked':'unlocked'}`;
+    card.innerText=i;
+    if(!isLocked) card.onclick=()=>startLevel(i);
+    gridContainer.appendChild(card);
+  }
+}
 
-            gameActive = true;
-            resize();
-            requestAnimationFrame(loop);
-        }
+function resize(){ width=canvas.width=window.innerWidth; height=canvas.height=window.innerHeight; }
+window.addEventListener('resize',resize);
+window.addEventListener('keydown',e=>{
+  if(e.key==='ArrowLeft'||e.key==='a') keys.left=true;
+  if(e.key==='ArrowRight'||e.key==='d') keys.right=true;
+  if(e.key==='ArrowUp'||e.key==='w') keys.up=true;
+  if(e.key==='Shift') keys.nitro=true;
+});
+window.addEventListener('keyup',e=>{
+  if(e.key==='ArrowLeft'||e.key==='a') keys.left=false;
+  if(e.key==='ArrowRight'||e.key==='d') keys.right=false;
+  if(e.key==='ArrowUp'||e.key==='w') keys.up=false;
+  if(e.key==='Shift') keys.nitro=false;
+});
 
-        function loop() {
-            if (!gameActive) return;
+renderLevels();
 
-            player.update();
-            enemies.forEach(e => e.update(player));
-            civilians.forEach(c => c.update(player));
+// JOYSTICK MOBILE
+let touchId=null;
+joystickContainer.addEventListener('touchstart',e=>{
+  const t=e.targetTouches[0]; touchId=t.identifier;
+  updateStick(t);
+});
+joystickContainer.addEventListener('touchmove',e=>{
+  for(let t of e.targetTouches) if(t.identifier===touchId) {updateStick(t); e.preventDefault();}
+});
+joystickContainer.addEventListener('touchend',e=>{touchId=null; keys.left=keys.right=keys.up=false; stick.style.transform="translate(-50%,-50%)";});
+function updateStick(t){
+  const rect=joystickContainer.getBoundingClientRect();
+  let dx=t.clientX-(rect.left+rect.width/2);
+  let dy=t.clientY-(rect.top+rect.height/2);
+  let dist=Math.min(Math.hypot(dx,dy),50);
+  let angle=Math.atan2(dy,dx);
+  dx=Math.cos(angle)*dist; dy=Math.sin(angle)*dist;
+  stick.style.transform=`translate(${dx}px,${dy}px)`;
+  keys.up=dy<-10; keys.down=dy>10; keys.left=dx<-10; keys.right=dx>10;
+}
 
-            // Particelle
-            particles.forEach((p, i) => {
-                p.x += p.vx; p.y += p.vy; p.life -= 0.02;
-                if (p.life <= 0) particles.splice(i, 1);
-            });
-
-            // Distanza
-            const d = Math.sqrt((player.x - garage.x)**2 + (player.y - garage.y)**2);
-            document.getElementById('dist-to-garage').innerText = Math.floor(d) + 'm';
-            document.getElementById('stealth-status').innerText = player.isSafe ? "NASCOSTO" : "VISIBILE";
-            document.getElementById('stealth-status').style.color = player.isSafe ? "#4ade80" : "#60a5fa";
-
-            if (d < 80) endGame(true);
-
-            updateRadar();
-
-            // Draw
-            ctx.fillStyle = '#0f172a';
-            ctx.fillRect(0, 0, width, height);
-
-            ctx.save();
-            ctx.translate(width/2 - player.x, height/2 - player.y);
-
-            // Stradale / Erba (Semplice background)
-            ctx.strokeStyle = 'rgba(255,255,255,0.05)';
-            ctx.lineWidth = 2;
-            for(let i=-WORLD_SIZE; i<=WORLD_SIZE; i+=200) {
-                ctx.beginPath(); ctx.moveTo(i, -WORLD_SIZE); ctx.lineTo(i, WORLD_SIZE); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(-WORLD_SIZE, i); ctx.lineTo(WORLD_SIZE, i); ctx.stroke();
-            }
-
-            SAFE_ZONES.forEach(z => {
-                ctx.fillStyle = 'rgba(30, 64, 175, 0.2)';
-                ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, Math.PI*2); ctx.fill();
-            });
-
-            // Garage
-            ctx.fillStyle = '#fbbf24';
-            ctx.fillRect(garage.x - 70, garage.y - 70, 140, 140);
-            ctx.fillStyle = '#000';
-            ctx.fillRect(garage.x - 50, garage.y - 10, 100, 60);
-
-            civilians.forEach(c => c.draw());
-            enemies.forEach(e => e.draw());
-            particles.forEach(p => {
-                ctx.globalAlpha = p.life;
-                ctx.fillStyle = p.color;
-                ctx.fillRect(p.x, p.y, 4, 4);
-                ctx.globalAlpha = 1;
-            });
-            player.draw();
-
-            ctx.restore();
-            requestAnimationFrame(loop);
-        }
-
-        function updateRadar() {
-            const container = document.getElementById('radar-dots');
-            container.innerHTML = '';
-            const scale = 0.04;
-
-            const drawDot = (ox, oy, color, size=4) => {
-                const rx = ox * scale;
-                const ry = oy * scale;
-                if (Math.abs(rx) < 65 && Math.abs(ry) < 65) {
-                    const d = document.createElement('div');
-                    d.style.cssText = `position:absolute; left:${72+rx}px; top:${72+ry}px; width:${size}px; height:${size}px; background:${color}; border-radius:50%; transform:translate(-50%,-50%)`;
-                    container.appendChild(d);
-                }
-            };
-
-            drawDot(garage.x - player.x, garage.y - player.y, '#fbbf24', 6);
-            enemies.forEach(e => drawDot(e.x - player.x, e.y - player.y, '#ef4444'));
-        }
-
-        function endGame(win) {
-            gameActive = false;
-            const modal = document.getElementById('status-modal');
-            modal.style.display = 'flex';
-            const title = document.getElementById('status-title');
-            title.innerText = win ? "CE L'HAI FATTA!" : "ARRESTATO";
-            title.className = win ? "text-7xl font-black italic mb-2 text-green-500" : "text-7xl font-black italic mb-2 text-red-600";
-            document.getElementById('status-desc').innerText = win ? "Hai seminato la polizia." : "Il tuo viaggio finisce qui.";
-            
-            if (win && currentLevel === unlockedLevel && unlockedLevel < 25) {
-                unlockedLevel++;
-                localStorage.setItem('city_escape_unlocked', unlockedLevel);
-            }
-        }
-
-        function exitToMenu() {
-            gameActive = false;
-            document.getElementById('game-ui').style.display = 'none';
-            document.getElementById('status-modal').style.display = 'none';
-            document.getElementById('level-menu').style.display = 'flex';
-            renderLevels();
-        }
-
-        function renderLevels() {
-            gridContainer.innerHTML = '';
-            for(let i=1; i<=25; i++) {
-                const card = document.createElement('div');
-                const isLocked = i > unlockedLevel;
-                card.className = `level-card ${isLocked ? 'locked' : 'unlocked'}`;
-                card.innerText = i;
-                if (!isLocked) card.onclick = () => startLevel(i);
-                gridContainer.appendChild(card);
-            }
-        }
-
-        function resize() { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; }
-        window.addEventListener('resize', resize);
-        window.addEventListener('keydown', e => {
-            if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = true;
-            if (e.key === 'ArrowRight' || e.key === 'd') keys.right = true;
-            if (e.key === 'ArrowUp' || e.key === 'w') keys.up = true;
-            if (e.key === 'Shift') keys.nitro = true;
-        });
-        window.addEventListener('keyup', e => {
-            if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = false;
-            if (e.key === 'ArrowRight' || e.key === 'd') keys.right = false;
-            if (e.key === 'ArrowUp' || e.key === 'w') keys.up = false;
-            if (e.key === 'Shift') keys.nitro = false;
-        });
-
-        renderLevels();
-    </script>
+// BOOST BUTTON
+boostBtn.addEventListener('touchstart',()=>{keys.nitro=true;});
+boostBtn.addEventListener('touchend',()=>{keys.nitro=false;});
+boostBtn.addEventListener('mousedown',()=>{keys.nitro=true;});
+boostBtn.addEventListener('mouseup',()=>{keys.nitro=false;});
+</script>
 </body>
-</html
+</html>
